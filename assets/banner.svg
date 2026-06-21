@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 200" role="img" aria-label="gowtree banner">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="50%" stop-color="#14532d"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="200" fill="url(#bg)" rx="16"/>
+  <text x="48" y="88" fill="url(#accent)" font-family="Segoe UI, system-ui, sans-serif" font-size="56" font-weight="700"><3 gowtree</text>
+  <text x="48" y="132" fill="#cbd5e1" font-family="Segoe UI, system-ui, sans-serif" font-size="24">A modern tree command for Windows</text>
+  <text x="48" y="168" fill="#64748b" font-family="Segoe UI, system-ui, sans-serif" font-size="16">Colors · Icons · JSON · Markdown · HTML · Clipboard</text>
+  <g transform="translate(680,40)" fill="none" stroke="#4ade80" stroke-width="2" opacity="0.8">
+    <line x1="20" y1="0" x2="20" y2="40"/>
+    <line x1="20" y1="40" x2="0" y2="80"/>
+    <line x1="20" y1="40" x2="40" y2="70"/>
+    <line x1="20" y1="40" x2="60" y2="55"/>
+    <line x1="20" y1="40" x2="80" y2="90"/>
+    <circle cx="0" cy="80" r="6" fill="#22d3ee"/>
+    <circle cx="40" cy="70" r="6" fill="#4ade80"/>
+    <circle cx="60" cy="55" r="6" fill="#a78bfa"/>
+    <circle cx="80" cy="90" r="6" fill="#fbbf24"/>
+  </g>
+</svg>

@@ -1,0 +1,36 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Installer output
+installer/output/
+
+# Build artifacts at root
+/gowtree.exe
+
+# Dependencies
+vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+.env
+*.log
+
+# Temp files
+*.tmp
+*.bak
+*.backup
+
+# Test coverage
+*.out
+coverage.html

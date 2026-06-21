@@ -1,0 +1,23 @@
+🌳 gowtree — A Modern Tree Command for Windows
+==============================================
+
+Thank you for choosing gowtree!
+
+This installer will:
+  • Copy gowtree.exe to your user Programs folder
+  • Optionally add it to your PATH
+  • Create Start Menu shortcuts
+
+Requirements:
+  • Windows 10 or later
+  • No administrator privileges needed
+
+After installation, open a NEW terminal and run:
+
+  gowtree
+  gowtree -a -s -L 2 --icons
+  gowtree --markdown --out tree.md
+
+Documentation: https://github.com/hosseinghorbani0/gowtree
+
+Made with ❤️ by Hossein Ghorbani
