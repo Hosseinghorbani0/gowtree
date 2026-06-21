@@ -5,8 +5,9 @@
 *.dylib
 
 # Build output
-/dist/
+/release/
 /gowtree.exe
+/installer/output/
 
 # Dependencies
 vendor/

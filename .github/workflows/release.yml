@@ -38,14 +38,19 @@ jobs:
       - name: Build release binary
         run: go build -ldflags="-s -w" -o gowtree.exe ./cmd/gowtree
       - name: Install Inno Setup
-        run: choco install innosetup -y
-      - name: Build installer
-        run: iscc installer\gowtree.iss
+        run: |
+          $url = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
+          Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\innosetup.exe"
+          Start-Process -FilePath "$env:TEMP\innosetup.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/DIR=C:\InnoSetup6" -Wait
+      - name: Build release artifacts
+        shell: pwsh
+        run: ./scripts/build-installer.ps1
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            gowtree.exe
-            installer/output/gowtree-setup-*.exe
+            release/gowtree.exe
+            release/gowtree-setup-1.4.0.exe
+            release/gowtree-portable-1.4.0.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

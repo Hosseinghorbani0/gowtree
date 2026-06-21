@@ -30,20 +30,18 @@ SolidCompression=yes
 MinVersion=10.0.22000
 UninstallDisplayIcon={app}\{#MyAppExeName}
 LicenseFile=..\LICENSE
-InfoBeforeFile=..\installer\welcome.txt
+InfoBeforeFile=welcome.txt
 SetupLogging=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "farsi"; MessagesFile: "compiler:Translations\Farsi.isl"
 
 [CustomMessages]
-english.WelcomeLabel2=This wizard will install [name/ver] on your computer.%n%n🌳 A modern tree command for Windows — colors, icons, JSON/Markdown/HTML export, and more.%n%nNo admin rights required.
-farsi.WelcomeLabel2=این برنامه [name/ver] را روی سیستم شما نصب می‌کند.%n%n🌳 یک دستور tree مدرن برای ویندوز — رنگ، آیکون، خروجی JSON/Markdown/HTML و بیشتر.%n%nنیازی به دسترسی Administrator نیست.
+english.WelcomeLabel2=This wizard will install [name/ver] on your computer.%n%nA modern tree command for Windows - colors, icons, JSON/Markdown/HTML export, and more.%n%nNo admin rights required.
 
 [Tasks]
-Name: "addToPath"; Description: "Add gowtree to PATH (recommended)"; GroupDescription: "Environment:"; Flags: checked
-Name: "desktopIcon"; Description: "Create a desktop shortcut"; GroupDescription: "Shortcuts:"; Flags: unchecked
+Name: "addToPath"; Description: "Add gowtree to PATH (recommended)"; GroupDescription: "Additional options:"
+Name: "desktopIcon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional options:"
 
 [Files]
 Source: "..\gowtree.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -102,7 +100,7 @@ procedure CurPageChanged(CurPageID: Integer);
 begin
   if CurPageID = wpFinished then
     WizardForm.FinishedLabel.Caption :=
-      '🌳 gowtree is ready!' + #13#10 +
+      'gowtree is ready!' + #13#10 +
       'Open a new terminal and run: gowtree' + #13#10#13#10 +
       'Tip: try  gowtree -a -s -L 2 --icons';
 end;
