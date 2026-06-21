@@ -30,8 +30,11 @@
 
 ### Option A — Graphical Installer (Recommended)
 
-1. Download **`gowtree-setup-1.4.0.exe`** from [Releases](https://github.com/hosseinghorbani0/gowtree/releases)
-2. Run the wizard → check **Add to PATH**
+1. Download from **[Releases v1.4.0](https://github.com/Hosseinghorbani0/gowtree/releases/tag/v1.4.0)**:
+   - **`gowtree-setup-1.4.0.exe`** — Next/Next wizard installer (recommended)
+   - **`gowtree.exe`** — portable, no install needed
+   - **`gowtree-portable-1.4.0.zip`** — exe + install scripts
+2. Run `gowtree-setup-1.4.0.exe` → check **Add to PATH** → Finish
 3. Open a **new** terminal:
 
 ```powershell
