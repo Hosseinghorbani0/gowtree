@@ -10,8 +10,8 @@ Thank you for your interest in contributing to gowtree! Here's how you can help:
 
 ## Building
 
-```bash
-go build -o gowtree
+```powershell
+go build -o gowtree.exe ./cmd/gowtree
 ```
 
 ## Testing

@@ -4,10 +4,8 @@
 *.so
 *.dylib
 
-# Installer output
-installer/output/
-
-# Build artifacts at root
+# Build output
+/dist/
 /gowtree.exe
 
 # Dependencies
