@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/hosseinghorbani0/gowtree/internal/app"
 )
 
 func TestIntegrationOutput(t *testing.T) {
@@ -17,7 +19,7 @@ func TestIntegrationOutput(t *testing.T) {
 	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/gowtree")
 	cmd.Dir = filepath.Join("..", "..")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Skipf("skipping integration test: cannot build binary: %v\n%s", err, out)
+		t.Fatalf("cannot build integration binary: %v\n%s", err, out)
 	}
 	defer os.Remove(binaryPath)
 
@@ -60,6 +62,15 @@ func TestIntegrationOutput(t *testing.T) {
 					t.Errorf("output missing %q", w)
 				}
 			}
+
 		})
+	}
+}
+
+func TestRunRejectsExplicitlyMissingConfig(t *testing.T) {
+	root := t.TempDir()
+	missing := filepath.Join(root, "missing.yaml")
+	if got := app.Run([]string{"--config", missing, root}); got == 0 {
+		t.Fatal("Run() exit code = 0, want non-zero for missing explicit config")
 	}
 }
