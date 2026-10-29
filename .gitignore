@@ -4,10 +4,16 @@
 *.so
 *.dylib
 
-# Build output
+# Build output (not published — only setup exe is released)
+/build/
 /release/
 /gowtree.exe
 /installer/output/
+/cmd/gowtree/rsrc_windows_amd64.syso
+/assets/icon.ico
+/assets/wizard-large.bmp
+/assets/wizard-small.bmp
+/assets/_icon256.png
 
 # Dependencies
 vendor/

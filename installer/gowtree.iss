@@ -21,8 +21,11 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=.\output
 OutputBaseFilename=gowtree-setup-{#MyAppVersion}
+SetupIconFile=..\assets\icon.ico
+WizardImageFile=..\assets\wizard-large.bmp
+WizardSmallImageFile=..\assets\wizard-small.bmp
 WizardStyle=modern
-WizardSizePercent=110
+WizardSizePercent=115
 PrivilegesRequired=lowest
 DisableProgramGroupPage=yes
 Compression=lzma2/ultra64
@@ -32,24 +35,29 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 LicenseFile=..\LICENSE
 InfoBeforeFile=welcome.txt
 SetupLogging=yes
+VersionInfoVersion=1.4.0.0
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription={#MyAppName} Setup — Directory Tree for Windows
+VersionInfoCopyright=Copyright (C) 2026 {#MyAppPublisher}
+VersionInfoProductName={#MyAppName}
+VersionInfoProductVersion={#MyAppVersion}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [CustomMessages]
-english.WelcomeLabel2=This wizard will install [name/ver] on your computer.%n%nA modern tree command for Windows - colors, icons, JSON/Markdown/HTML export, and more.%n%nNo admin rights required.
+english.WelcomeLabel2=Install [name/ver] — a modern directory tree command for Windows.%n%nClick Next to begin. If Windows SmartScreen appears, choose More info, then Run anyway.%n%nNo admin rights required.
 
 [Tasks]
-Name: "addToPath"; Description: "Add gowtree to PATH (recommended)"; GroupDescription: "Additional options:"
-Name: "desktopIcon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional options:"
+Name: "addToPath"; Description: "Add gowtree to PATH (recommended)"; GroupDescription: "Options:"
+Name: "desktopIcon"; Description: "Create a desktop shortcut"; GroupDescription: "Options:"
 
 [Files]
-Source: "..\gowtree.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
+Source: "..\build\gowtree.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Parameters: "-h"; Comment: "Directory tree viewer"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "Directory tree viewer"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopIcon
 
@@ -57,15 +65,11 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Tasks: addToPath; Check: NeedsAddPath(ExpandConstant('{app}'))
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Parameters: "-h"; Description: "Show gowtree help"; Flags: nowait postinstall skipifsilent shellexec
-
-[UninstallRun]
-Filename: "cmd.exe"; Parameters: "/c echo PATH updated — open a new terminal"; Flags: runhidden
+Filename: "{app}\{#MyAppExeName}"; Parameters: "-h"; Description: "Launch gowtree help"; Flags: nowait postinstall skipifsilent shellexec
 
 [Code]
 function NeedsAddPath(Param: string): Boolean;
-var
-  OrigPath: string;
+var OrigPath: string;
 begin
   if not RegQueryStringValue(HKCU, 'Environment', 'Path', OrigPath) then
     Result := True
@@ -74,19 +78,15 @@ begin
 end;
 
 procedure RemoveFromPath(AppDir: string);
-var
-  OrigPath, NewPath: string;
-  P: Integer;
+var OrigPath, NewPath: string; P: Integer;
 begin
-  if not RegQueryStringValue(HKCU, 'Environment', 'Path', OrigPath) then
-    Exit;
+  if not RegQueryStringValue(HKCU, 'Environment', 'Path', OrigPath) then Exit;
   P := Pos(';' + AppDir, OrigPath);
   if P > 0 then
     NewPath := Copy(OrigPath, 1, P - 1) + Copy(OrigPath, P + Length(';' + AppDir), MaxInt)
   else if Pos(AppDir + ';', OrigPath) = 1 then
     NewPath := Copy(OrigPath, Length(AppDir) + 2, MaxInt)
-  else
-    Exit;
+  else Exit;
   RegWriteExpandStringValue(HKCU, 'Environment', 'Path', NewPath);
 end;
 
@@ -96,23 +96,19 @@ begin
     RemoveFromPath(ExpandConstant('{app}'));
 end;
 
+procedure InitializeWizard();
+begin
+  if WizardForm.TasksList.Items.Count > 0 then
+    WizardForm.TasksList.Checked[0] := True;
+end;
+
 procedure CurPageChanged(CurPageID: Integer);
 begin
   if CurPageID = wpFinished then
     WizardForm.FinishedLabel.Caption :=
-      'gowtree is ready!' + #13#10 +
-      'Open a new terminal and run: gowtree' + #13#10#13#10 +
-      'Tip: try  gowtree -a -s -L 2 --icons';
-end;
-
-function InitializeSetup(): Boolean;
-begin
-  Result := True;
-end;
-
-function NextButtonClick(CurPageID: Integer): Boolean;
-begin
-  Result := True;
+      'gowtree installed successfully!' + #13#10 +
+      'Open a NEW terminal and type:  gowtree' + #13#10#13#10 +
+      'Try:  gowtree -a -s -L 2 --icons';
 end;
 
 [Messages]

@@ -27,31 +27,15 @@
 
 ## ⚡ شروع سریع (۳۰ ثانیه)
 
-### روش ۱ — نصب گرافیکی (پیشنهادی)
-
-1. فایل **`gowtree-setup-1.4.0.exe`** را از [Releases](https://github.com/hosseinghorbani0/gowtree/releases) دانلود کنید
-2. ویزارد را اجرا کنید → گزینه **Add to PATH** را فعال کنید
+1. **`gowtree-setup-1.4.0.exe`** را از [Releases](https://github.com/Hosseinghorbani0/gowtree/releases/latest) دانلود کنید
+2. نصب‌کننده را اجرا کنید → Next → Next → **Add to PATH** → Install → Finish
 3. یک **ترمینال جدید** باز کنید:
 
 ```powershell
-gowtree
 gowtree -a -s -L 2 --icons
 ```
 
-### روش ۲ — نصب با اسکریپت
-
-```powershell
-git clone https://github.com/hosseinghorbani0/gowtree.git
-cd gowtree
-.\install.bat
-```
-
-### روش ۳ — کامپایل از سورس
-
-```powershell
-go build -o gowtree.exe ./cmd/gowtree
-.\install.ps1
-```
+> **هشدار SmartScreen ویندوز:** بار اول ممکن است صفحه آبی «Windows protected your PC» بیاید. روی **More info** بزنید → **Run anyway**. این برای نرم‌افزار امضا‌نشده جدید طبیعی است.
 
 ---
 
@@ -123,7 +107,15 @@ scripts/           ← اسکریپت build
 
 ## 🐛 رفع مشکل
 
-**دستور پیدا نمی‌شود؟** ترمینال جدید باز کنید یا `%USERPROFILE%\bin` را به PATH اضافه کنید.
+### هشدار آبی SmartScreen
+
+بار اول ویندوز پیام **Windows protected your PC** نشان می‌دهد چون برنامه هنوز با گواهی code-signing امضا نشده. این برای نرم‌افزار متن‌باز جدید طبیعی است.
+
+**برای نصب:** **More info** → **Run anyway**
+
+آیکون درخت، نام سازنده و اطلاعات نسخه اضافه شده. برای حذف کامل هشدار به گواهی Authenticode (~۱۰۰+ دلار/سال) نیاز است.
+
+### دستور پیدا نمی‌شود؟ ترمینال جدید باز کنید یا `%USERPROFILE%\bin` را به PATH اضافه کنید.
 
 **رنگ نمی‌بینید؟** `gowtree --color always` — Windows Terminal را امتحان کنید.
 

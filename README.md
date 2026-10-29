@@ -28,13 +28,8 @@
 
 ## ⚡ Quick Start (30 seconds)
 
-### Option A — Graphical Installer (Recommended)
-
-1. Download from **[Releases v1.4.0](https://github.com/Hosseinghorbani0/gowtree/releases/tag/v1.4.0)**:
-   - **`gowtree-setup-1.4.0.exe`** — Next/Next wizard installer (recommended)
-   - **`gowtree.exe`** — portable, no install needed
-   - **`gowtree-portable-1.4.0.zip`** — exe + install scripts
-2. Run `gowtree-setup-1.4.0.exe` → check **Add to PATH** → Finish
+1. Download **`gowtree-setup-1.4.0.exe`** from **[Releases](https://github.com/Hosseinghorbani0/gowtree/releases/latest)**
+2. Run the installer → Next → Next → check **Add to PATH** → Install → Finish
 3. Open a **new** terminal:
 
 ```powershell
@@ -42,19 +37,15 @@ gowtree
 gowtree -a -s -L 2 --icons
 ```
 
-### Option B — One-line script install
+> **Windows SmartScreen (first run):** Windows may show a blue warning because the app is new and not yet code-signed. Click **More info** → **Run anyway**. This is normal for open-source releases without a paid certificate.
+
+### Build from source (developers only)
 
 ```powershell
-git clone https://github.com/hosseinghorbani0/gowtree.git
+git clone https://github.com/Hosseinghorbani0/gowtree.git
 cd gowtree
-.\install.bat
-```
-
-### Option C — Build from source
-
-```powershell
-go build -o gowtree.exe ./cmd/gowtree
-.\install.ps1
+.\scripts\build-installer.ps1
+# Output: release\gowtree-setup-1.4.0.exe
 ```
 
 ---
@@ -185,6 +176,14 @@ CLI flags always override config values.
 ---
 
 ## 🐛 Troubleshooting
+
+### Windows SmartScreen blue warning
+
+On first run, Windows shows **"Windows protected your PC"** because gowtree is not yet signed with a paid code-signing certificate. This is normal for new open-source apps.
+
+**To install:** click **More info** → **Run anyway**.
+
+We added a proper icon, publisher name, and version info to look professional. A full fix requires [Authenticode code signing](https://learn.microsoft.com/en-us/windows/win32/seccrypto/cryptography-tools) (~$100+/year). That is planned for a future release.
 
 ### `gowtree` is not recognized
 

@@ -1,23 +1,30 @@
-🌳 gowtree — A Modern Tree Command for Windows
-==============================================
+gowtree — Windows Installer
+============================
 
-Thank you for choosing gowtree!
+Welcome! This wizard installs gowtree on your PC.
 
-This installer will:
-  • Copy gowtree.exe to your user Programs folder
-  • Optionally add it to your PATH
-  • Create Start Menu shortcuts
+WHAT YOU GET
+  • A modern "tree" command for Windows Terminal / CMD
+  • Colors, icons, JSON / Markdown / HTML export
+  • Adds gowtree to PATH (optional, recommended)
 
-Requirements:
-  • Windows 10 or later
-  • No administrator privileges needed
+WINDOWS SMARTSCREEN (first run only)
+------------------------------------
+Windows may show a blue screen: "Windows protected your PC".
 
-After installation, open a NEW terminal and run:
+This happens because gowtree is new and not yet code-signed.
+It is safe — our source code is public on GitHub.
 
-  gowtree
-  gowtree -a -s -L 2 --icons
-  gowtree --markdown --out tree.md
+To continue:
+  1. Click  "More info"
+  2. Click  "Run anyway"
 
-Documentation: https://github.com/hosseinghorbani0/gowtree
+After many users install, Windows usually stops showing this warning.
 
-Made with ❤️ by Hossein Ghorbani
+REQUIREMENTS
+  • Windows 11 (or Windows 10 22H2+)
+  • No Administrator rights needed
+
+https://github.com/Hosseinghorbani0/gowtree
+
+Made by Hossein Ghorbani
