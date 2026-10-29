@@ -35,10 +35,15 @@ jobs:
       - name: Check formatting
         shell: pwsh
         run: |
-          $files = @(gofmt -l .) | Where-Object { $_.Trim() -ne "" }
-          if ($files) {
+          $goFiles = @(git ls-files '*.go')
+          if ($goFiles.Count -eq 0) {
+            throw "No tracked Go files found"
+          }
+          gofmt -w $goFiles
+          $changed = @(git diff --name-only -- '*.go')
+          if ($changed.Count -gt 0) {
             Write-Error "The following files are not gofmt-formatted:"
-            $files | ForEach-Object { Write-Error $_ }
+            $changed | ForEach-Object { Write-Error $_ }
             exit 1
           }
 
