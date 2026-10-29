@@ -409,9 +409,6 @@ func BuildJSONStrict(path string, depth int, visited map[string]bool, opts Optio
 				continue
 			}
 			childPath := entryPath
-			if classified.kind == entrySymlink && classified.targetInfo != nil {
-				childPath = classified.canonicalPath
-			}
 			child, err := BuildJSONStrict(childPath, depth+1, visited, opts)
 			if err != nil {
 				return nil, err
