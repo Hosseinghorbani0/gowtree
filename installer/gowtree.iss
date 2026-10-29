@@ -2,7 +2,9 @@
 ; Build: .\scripts\build-installer.ps1
 
 #define MyAppName "gowtree"
+#ifndef MyAppVersion
 #define MyAppVersion "1.4.0"
+#endif
 #define MyAppPublisher "Hossein Ghorbani"
 #define MyAppURL "https://github.com/hosseinghorbani0/gowtree"
 #define MyAppExeName "gowtree.exe"
@@ -35,7 +37,7 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 LicenseFile=..\LICENSE
 InfoBeforeFile=welcome.txt
 SetupLogging=yes
-VersionInfoVersion=1.4.0.0
+VersionInfoVersion={#MyAppVersion}.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppName} Setup — Directory Tree for Windows
 VersionInfoCopyright=Copyright (C) 2026 {#MyAppPublisher}
