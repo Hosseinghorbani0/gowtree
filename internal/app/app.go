@@ -127,7 +127,20 @@ func Run(args []string) int {
 	if cfgPath == "" {
 		cfgPath = config.DefaultPath()
 	}
-	if cfg, err := config.Load(cfgPath); err == nil && cfg != nil {
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		if configFile == "" {
+			fmt.Fprintln(os.Stderr, "Error loading default config:", err)
+		} else {
+			fmt.Fprintln(os.Stderr, "Error loading config:", err)
+		}
+		return 1
+	}
+	if cfg == nil && configFile != "" {
+		fmt.Fprintf(os.Stderr, "Error loading config: file not found: %s\n", configFile)
+		return 1
+	}
+	if cfg != nil {
 		if cfg.Color != nil {
 			applyConfig("color", func() { colorMode = *cfg.Color })
 		}
@@ -181,6 +194,23 @@ func Run(args []string) int {
 		}
 	}
 
+	if err := validateOptions(runtimeOptions{
+		colorMode: colorMode,
+		charset:   charset,
+		sortBy:    sortBy,
+		timeMode:  timeFlag,
+		maxDepth:  maxDepth,
+		dirsOnly:  dirsOnly,
+		filesOnly: filesOnly,
+		jsonOut:   jsonOut,
+		markdown:  markdown,
+		htmlOut:   htmlOut,
+		ignore:    ignorePats,
+	}); err != nil {
+		fmt.Fprintln(os.Stderr, "Invalid options:", err)
+		return 2
+	}
+
 	if showVersion {
 		fmt.Println("gowtree", metadata.Version)
 		return 0
@@ -226,6 +256,7 @@ func Run(args []string) int {
 		DU:             duFlag,
 		Verbose:        verbose,
 		Theme:          theme,
+		SizeCache:      make(map[string]int64),
 	}
 
 	var clipBuffer *bytes.Buffer
@@ -281,45 +312,79 @@ func Run(args []string) int {
 		return 1
 	}
 	if !info.IsDir() {
-		fmt.Fprintln(outWriter, root)
+		if _, err := fmt.Fprintln(outWriter, root); err != nil {
+			fmt.Fprintln(os.Stderr, "Error writing output:", err)
+			return 1
+		}
 		return 0
 	}
 
 	absRoot, _ := filepath.Abs(root)
 
 	if jsonOut {
-		node := tree.BuildJSON(root, 0, nil, opts)
+		node, err := tree.BuildJSONStrict(root, 0, nil, opts)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error building JSON tree:", err)
+			return 1
+		}
 		node.Name = strings.TrimRight(absRoot, "/\\") + "/"
 		enc := json.NewEncoder(outWriter)
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(node)
+		if err := enc.Encode(node); err != nil {
+			fmt.Fprintln(os.Stderr, "Error writing JSON:", err)
+			return 1
+		}
 		return 0
 	}
 
 	if markdown || htmlOut {
-		node := tree.BuildJSON(root, 0, nil, opts)
+		node, err := tree.BuildJSONStrict(root, 0, nil, opts)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error building output tree:", err)
+			return 1
+		}
 		node.Name = strings.TrimRight(absRoot, "/\\") + "/"
 		if markdown {
-			output.RenderMarkdown(outWriter, node, "", true, theme, duFlag)
+			if err := output.RenderMarkdown(outWriter, node, "", true, theme, duFlag); err != nil {
+				fmt.Fprintln(os.Stderr, "Error writing Markdown:", err)
+				return 1
+			}
 		} else {
-			output.RenderHTML(outWriter, node, "", true, theme, duFlag)
+			if err := output.RenderHTML(outWriter, node, "", true, theme, duFlag); err != nil {
+				fmt.Fprintln(os.Stderr, "Error writing HTML:", err)
+				return 1
+			}
 		}
 		if !noCredit {
-			fmt.Fprintf(outWriter, "\n🌳 gowtree — crafted by %s (%s)\n", metadata.Author, metadata.RepoURL)
+			if _, err := fmt.Fprintf(outWriter, "\n🌳 gowtree — crafted by %s (%s)\n", metadata.Author, metadata.RepoURL); err != nil {
+				fmt.Fprintln(os.Stderr, "Error writing attribution:", err)
+				return 1
+			}
 		}
 		if clipFlag && clipBuffer != nil {
-			_ = output.CopyToClipboard(clipBuffer.String())
+			if err := output.CopyToClipboard(clipBuffer.String()); err != nil {
+				fmt.Fprintln(os.Stderr, "Error copying output to clipboard:", err)
+				return 1
+			}
 		}
 		return 0
 	}
 
-	fmt.Fprintln(outWriter, strings.TrimRight(absRoot, "/\\")+"/")
+	if _, err := fmt.Fprintln(outWriter, strings.TrimRight(absRoot, "/\\")+"/"); err != nil {
+		fmt.Fprintln(os.Stderr, "Error writing output:", err)
+		return 1
+	}
 	stats := &tree.Stats{}
 
 	var progressTotal int64
 	var progressCurrent int64
 	if progress && style.IsTerminal(os.Stderr.Fd()) {
-		progressTotal = tree.CountItems(root, opts)
+		var countErr error
+		progressTotal, countErr = tree.CountItemsStrict(root, opts)
+		if countErr != nil {
+			fmt.Fprintln(os.Stderr, "Error counting path:", countErr)
+			return 1
+		}
 		if progressTotal > 0 {
 			go func() {
 				for {
@@ -338,17 +403,29 @@ func Run(args []string) int {
 	}
 
 	visited := make(map[string]bool)
-	tree.Print(outWriter, root, "", 0, &progressCurrent, visited, stats, opts)
+	if err := tree.Print(outWriter, root, "", 0, &progressCurrent, visited, stats, opts); err != nil {
+		fmt.Fprintln(os.Stderr, "Error traversing path:", err)
+		return 1
+	}
 
-	fmt.Fprintf(outWriter, "\n%d directories, %d files\n", stats.Dirs, stats.Files)
+	if _, err := fmt.Fprintf(outWriter, "\n%d directories, %d files\n", stats.Dirs, stats.Files); err != nil {
+		fmt.Fprintln(os.Stderr, "Error writing statistics:", err)
+		return 1
+	}
 	if progress && style.IsTerminal(os.Stderr.Fd()) {
 		fmt.Fprint(os.Stderr, "\r"+strings.Repeat(" ", 80)+"\r")
 	}
 	if !noCredit {
-		fmt.Fprintf(outWriter, "\n🌳 gowtree — crafted by %s (%s)\n", metadata.Author, metadata.RepoURL)
+		if _, err := fmt.Fprintf(outWriter, "\n🌳 gowtree — crafted by %s (%s)\n", metadata.Author, metadata.RepoURL); err != nil {
+			fmt.Fprintln(os.Stderr, "Error writing attribution:", err)
+			return 1
+		}
 	}
 	if clipFlag && clipBuffer != nil {
-		_ = output.CopyToClipboard(clipBuffer.String())
+		if err := output.CopyToClipboard(clipBuffer.String()); err != nil {
+			fmt.Fprintln(os.Stderr, "Error copying output to clipboard:", err)
+			return 1
+		}
 	}
 	return 0
 }
