@@ -79,16 +79,17 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          $source = Get-ChildItem "installer\output\gowtree-setup-*.exe" |
-            Sort-Object LastWriteTime -Descending |
-            Select-Object -First 1
-          if (-not $source) {
-            throw "Installer artifact was not produced"
+          $source = "installer\output\gowtree-setup-$env:VERSION.exe"
+          if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
+            throw "Expected installer artifact was not produced: $source"
+          }
+          if ((Get-Item -LiteralPath $source).Length -le 0) {
+            throw "Installer artifact is empty: $source"
           }
 
           $destination = "release\gowtree-setup-$env:VERSION.exe"
           New-Item -ItemType Directory -Force -Path release | Out-Null
-          Copy-Item $source.FullName $destination -Force
+          Copy-Item $source $destination -Force
           $hash = (Get-FileHash $destination -Algorithm SHA256).Hash
           "$hash  $(Split-Path $destination -Leaf)" |
             Out-File "$destination.sha256" -Encoding ascii
