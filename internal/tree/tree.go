@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -93,6 +94,21 @@ type classifiedEntry struct {
 	canonicalPath string
 }
 
+func canonicalPath(path string) string {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		absolute = path
+	}
+	absolute = filepath.Clean(absolute)
+	if resolved, err := filepath.EvalSymlinks(absolute); err == nil {
+		absolute = filepath.Clean(resolved)
+	}
+	if runtime.GOOS == "windows" {
+		return strings.ToLower(absolute)
+	}
+	return absolute
+}
+
 func classifyEntry(path string) (classifiedEntry, error) {
 	info, err := os.Lstat(path)
 	if err != nil {
@@ -105,7 +121,7 @@ func classifyEntry(path string) (classifiedEntry, error) {
 			return classifiedEntry{
 				kind:          entrySymlink,
 				info:          info,
-				canonicalPath: path,
+				canonicalPath: canonicalPath(path),
 			}, nil
 		}
 		targetInfo, err := os.Stat(resolved)
@@ -113,14 +129,14 @@ func classifyEntry(path string) (classifiedEntry, error) {
 			return classifiedEntry{
 				kind:          entrySymlink,
 				info:          info,
-				canonicalPath: resolved,
+				canonicalPath: canonicalPath(resolved),
 			}, nil
 		}
 		return classifiedEntry{
 			kind:          entrySymlink,
 			info:          info,
 			targetInfo:    targetInfo,
-			canonicalPath: resolved,
+			canonicalPath: canonicalPath(resolved),
 		}, nil
 	}
 
@@ -128,14 +144,10 @@ func classifyEntry(path string) (classifiedEntry, error) {
 	if info.IsDir() {
 		kind = entryDir
 	}
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		absPath = path
-	}
 	return classifiedEntry{
 		kind:          kind,
 		info:          info,
-		canonicalPath: absPath,
+		canonicalPath: canonicalPath(path),
 	}, nil
 }
 
