@@ -33,6 +33,7 @@ type Options struct {
 	DU             bool
 	Verbose        bool
 	Theme          style.Theme
+	SizeCache      map[string]int64
 }
 
 // Node is the JSON-serializable tree structure.
@@ -77,10 +78,80 @@ type sortableEntry struct {
 	info  os.FileInfo
 }
 
+type entryKind string
+
+const (
+	entryFile    entryKind = "file"
+	entryDir     entryKind = "directory"
+	entrySymlink entryKind = "symlink"
+)
+
+type classifiedEntry struct {
+	kind          entryKind
+	info          os.FileInfo
+	targetInfo    os.FileInfo
+	canonicalPath string
+}
+
+func classifyEntry(path string) (classifiedEntry, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return classifiedEntry{}, err
+	}
+
+	if info.Mode()&os.ModeSymlink != 0 {
+		resolved, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return classifiedEntry{
+				kind:          entrySymlink,
+				info:          info,
+				canonicalPath: path,
+			}, nil
+		}
+		targetInfo, err := os.Stat(resolved)
+		if err != nil {
+			return classifiedEntry{
+				kind:          entrySymlink,
+				info:          info,
+				canonicalPath: resolved,
+			}, nil
+		}
+		return classifiedEntry{
+			kind:          entrySymlink,
+			info:          info,
+			targetInfo:    targetInfo,
+			canonicalPath: resolved,
+		}, nil
+	}
+
+	kind := entryFile
+	if info.IsDir() {
+		kind = entryDir
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		absPath = path
+	}
+	return classifiedEntry{
+		kind:          kind,
+		info:          info,
+		canonicalPath: absPath,
+	}, nil
+}
+
 func SortEntries(entries []os.DirEntry, opts Options) []os.DirEntry {
+	sorted, _ := SortEntriesStrict(entries, opts)
+	return sorted
+}
+
+// SortEntriesStrict sorts entries and reports metadata lookup failures.
+func SortEntriesStrict(entries []os.DirEntry, opts Options) ([]os.DirEntry, error) {
 	list := make([]sortableEntry, len(entries))
 	for i, e := range entries {
-		info, _ := e.Info()
+		info, err := e.Info()
+		if err != nil {
+			return nil, fmt.Errorf("read metadata for %q: %w", e.Name(), err)
+		}
 		list[i] = sortableEntry{entry: e, info: info}
 	}
 
@@ -129,7 +200,7 @@ func SortEntries(entries []os.DirEntry, opts Options) []os.DirEntry {
 	for i, se := range list {
 		result[i] = se.entry
 	}
-	return result
+	return result, nil
 }
 
 func IsExecutable(name string) bool {
@@ -142,61 +213,164 @@ func IsExecutable(name string) bool {
 }
 
 func DirSize(path string, verbose bool) int64 {
+	size, _ := DirSizeWithError(path)
+	return size
+}
+
+func dirSize(path string, cache map[string]int64) int64 {
+	size, _ := dirSizeWithError(path, cache)
+	return size
+}
+
+// DirSizeWithError calculates the size of regular files below path.
+// It does not follow directory symlinks, matching filepath.Walk semantics.
+func DirSizeWithError(path string) (int64, error) {
+	return dirSizeWithError(path, nil)
+}
+
+func dirSizeWithError(path string, cache map[string]int64) (int64, error) {
+	cacheKey, err := filepath.Abs(path)
+	if err != nil {
+		cacheKey = path
+	}
+	if cache != nil {
+		if size, ok := cache[cacheKey]; ok {
+			return size, nil
+		}
+	}
 	var size int64
-	filepath.Walk(path, func(walkPath string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
+	err = filepath.Walk(path, func(walkPath string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if info == nil {
+			return fmt.Errorf("missing metadata for %q", walkPath)
 		}
 		if !info.IsDir() {
 			size += info.Size()
 		}
 		return nil
 	})
-	return size
+	if err != nil {
+		return 0, fmt.Errorf("calculate directory size for %q: %w", path, err)
+	}
+	if cache != nil {
+		cache[cacheKey] = size
+	}
+	return size, nil
 }
 
 func CountItems(root string, opts Options) int64 {
-	var total int64
-	filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if !shouldInclude(info.Name(), p, opts) {
-			return nil
-		}
-		if opts.DirsOnly && !info.IsDir() {
-			return nil
-		}
-		if opts.FilesOnly && info.IsDir() {
-			return nil
-		}
-		total++
-		return nil
-	})
+	total, _ := CountItemsStrict(root, opts)
 	return total
 }
 
+// CountItemsStrict counts exactly the entries traversed by Print.
+func CountItemsStrict(root string, opts Options) (int64, error) {
+	return countItems(root, 0, make(map[string]bool), opts)
+}
+
+func countItems(path string, depth int, visited map[string]bool, opts Options) (int64, error) {
+	if opts.MaxDepth > 0 && depth >= opts.MaxDepth {
+		return 0, nil
+	}
+	entry, err := classifyEntry(path)
+	if err != nil {
+		return 0, fmt.Errorf("classify %q: %w", path, err)
+	}
+	if entry.kind == entrySymlink && !opts.FollowSymlinks {
+		return 0, nil
+	}
+	if visited[entry.canonicalPath] {
+		return 0, nil
+	}
+	visited[entry.canonicalPath] = true
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return 0, fmt.Errorf("read directory %q: %w", path, err)
+	}
+
+	var total int64
+	for _, e := range entries {
+		entryPath := filepath.Join(path, e.Name())
+		if !shouldInclude(e.Name(), entryPath, opts) {
+			continue
+		}
+		if opts.DirsOnly && !e.IsDir() {
+			continue
+		}
+		if opts.FilesOnly && e.IsDir() {
+			continue
+		}
+
+		total++
+		classified, classifyErr := classifyEntry(entryPath)
+		if classifyErr != nil {
+			continue
+		}
+		isDirectory := classified.kind == entryDir ||
+			(classified.kind == entrySymlink && opts.FollowSymlinks &&
+				classified.targetInfo != nil && classified.targetInfo.IsDir())
+		if isDirectory && e.IsDir() {
+			childTotal, childErr := countItems(entryPath, depth+1, visited, opts)
+			if childErr != nil {
+				return total, childErr
+			}
+			total += childTotal
+		} else if isDirectory && classified.kind == entrySymlink {
+			childTotal, childErr := countItems(classified.canonicalPath, depth+1, visited, opts)
+			if childErr != nil {
+				return total, childErr
+			}
+			total += childTotal
+		}
+	}
+	return total, nil
+}
+
 func BuildJSON(path string, depth int, visited map[string]bool, opts Options) *Node {
+	node, _ := BuildJSONStrict(path, depth, visited, opts)
+	return node
+}
+
+// BuildJSONStrict builds a JSON tree and reports filesystem traversal errors.
+func BuildJSONStrict(path string, depth int, visited map[string]bool, opts Options) (*Node, error) {
 	if visited == nil {
 		visited = make(map[string]bool)
 	}
-	absPath, _ := filepath.Abs(path)
-	if visited[absPath] {
-		return &Node{Name: filepath.Base(path), Type: "symlink-loop"}
-	}
-	visited[absPath] = true
-
 	node := &Node{Name: filepath.Base(path)}
-	info, err := os.Stat(path)
+	entry, err := classifyEntry(path)
 	if err != nil {
-		node.Type = "error"
-		return node
+		return nil, fmt.Errorf("classify %q: %w", path, err)
+	}
+	if entry.kind == entrySymlink && !opts.FollowSymlinks {
+		node.Type = string(entrySymlink)
+		return node, nil
+	}
+	if entry.kind == entrySymlink && entry.targetInfo == nil {
+		node.Type = "broken-symlink"
+		return node, nil
+	}
+
+	canonicalPath := entry.canonicalPath
+	if visited[canonicalPath] {
+		return &Node{Name: filepath.Base(path), Type: "symlink-loop"}, nil
+	}
+	visited[canonicalPath] = true
+
+	info := entry.info
+	if entry.kind == entrySymlink && entry.targetInfo != nil {
+		info = entry.targetInfo
 	}
 
 	if info.IsDir() {
 		node.Type = "directory"
 		if opts.DU {
-			node.Size = DirSize(path, opts.Verbose)
+			node.Size, err = dirSizeWithError(path, opts.SizeCache)
+			if err != nil {
+				return nil, fmt.Errorf("calculate directory size for %q: %w", path, err)
+			}
 		} else {
 			node.Size = info.Size()
 		}
@@ -204,9 +378,12 @@ func BuildJSON(path string, depth int, visited map[string]bool, opts Options) *N
 			node.ModTime = platform.FileTime(info, opts.TimeMode).Format(opts.Theme.TimeFormat)
 		}
 		if opts.MaxDepth > 0 && depth >= opts.MaxDepth {
-			return node
+			return node, nil
 		}
-		entries, _ := os.ReadDir(path)
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			return nil, fmt.Errorf("read directory %q: %w", path, err)
+		}
 		for _, e := range entries {
 			if !shouldInclude(e.Name(), filepath.Join(path, e.Name()), opts) {
 				continue
@@ -219,19 +396,29 @@ func BuildJSON(path string, depth int, visited map[string]bool, opts Options) *N
 			}
 
 			entryPath := filepath.Join(path, e.Name())
-			if opts.FollowSymlinks && e.Type()&os.ModeSymlink != 0 {
-				resolved, err := filepath.EvalSymlinks(entryPath)
-				if err == nil {
-					info2, err2 := os.Stat(resolved)
-					if err2 == nil && info2.IsDir() {
-						child := BuildJSON(resolved, depth+1, visited, opts)
-						child.Name = e.Name()
-						node.Children = append(node.Children, child)
-						continue
-					}
-				}
+			classified, err := classifyEntry(entryPath)
+			if err != nil {
+				return nil, fmt.Errorf("classify %q: %w", entryPath, err)
 			}
-			child := BuildJSON(entryPath, depth+1, visited, opts)
+			if classified.kind == entrySymlink && !opts.FollowSymlinks {
+				node.Children = append(node.Children, &Node{Name: e.Name(), Type: string(entrySymlink)})
+				continue
+			}
+			if classified.kind == entrySymlink && classified.targetInfo == nil {
+				node.Children = append(node.Children, &Node{Name: e.Name(), Type: "broken-symlink"})
+				continue
+			}
+			childPath := entryPath
+			if classified.kind == entrySymlink && classified.targetInfo != nil {
+				childPath = classified.canonicalPath
+			}
+			child, err := BuildJSONStrict(childPath, depth+1, visited, opts)
+			if err != nil {
+				return nil, err
+			}
+			if classified.kind == entrySymlink {
+				child.Name = e.Name()
+			}
 			node.Children = append(node.Children, child)
 		}
 		sortChildren(node, opts)
@@ -242,7 +429,7 @@ func BuildJSON(path string, depth int, visited map[string]bool, opts Options) *N
 			node.ModTime = platform.FileTime(info, opts.TimeMode).Format(opts.Theme.TimeFormat)
 		}
 	}
-	return node
+	return node, nil
 }
 
 func sortChildren(node *Node, opts Options) {
@@ -291,19 +478,26 @@ func sortChildren(node *Node, opts Options) {
 }
 
 // Print writes an ASCII/Unicode tree to w and updates stats.
-func Print(w io.Writer, path, prefix string, depth int, progCount *int64, visited map[string]bool, stats *Stats, opts Options) {
+func Print(w io.Writer, path, prefix string, depth int, progCount *int64, visited map[string]bool, stats *Stats, opts Options) error {
 	if opts.MaxDepth > 0 && depth >= opts.MaxDepth {
-		return
+		return nil
 	}
-	absPath, _ := filepath.Abs(path)
-	if visited[absPath] {
-		return
+	rootEntry, err := classifyEntry(path)
+	if err != nil {
+		return fmt.Errorf("classify %q: %w", path, err)
 	}
-	visited[absPath] = true
+	if rootEntry.kind == entrySymlink && !opts.FollowSymlinks {
+		return nil
+	}
+	canonicalPath := rootEntry.canonicalPath
+	if visited[canonicalPath] {
+		return nil
+	}
+	visited[canonicalPath] = true
 
 	entries, err := os.ReadDir(path)
 	if err != nil {
-		return
+		return fmt.Errorf("read directory %q: %w", path, err)
 	}
 
 	var filtered []os.DirEntry
@@ -320,7 +514,10 @@ func Print(w io.Writer, path, prefix string, depth int, progCount *int64, visite
 		filtered = append(filtered, e)
 	}
 
-	sorted := SortEntries(filtered, opts)
+	sorted, err := SortEntriesStrict(filtered, opts)
+	if err != nil {
+		return err
+	}
 	br := opts.Theme.Branches
 	col := opts.Theme.Colors
 
@@ -338,7 +535,11 @@ func Print(w io.Writer, path, prefix string, depth int, progCount *int64, visite
 		}
 
 		display := entry.Name()
+		classified, classifyErr := classifyEntry(filepath.Join(path, entry.Name()))
 		info, infoErr := entry.Info()
+		if infoErr != nil {
+			return fmt.Errorf("read metadata for %q: %w", entry.Name(), infoErr)
+		}
 
 		if opts.Theme.UseIcons {
 			display = style.IconFor(entry.Name(), entry.IsDir(), entry.Type()&os.ModeSymlink != 0) + display
@@ -352,42 +553,43 @@ func Print(w io.Writer, path, prefix string, depth int, progCount *int64, visite
 			display += " " + col.Yellow + timeStr + col.Reset
 		}
 		if opts.DU && entry.IsDir() {
-			dirSize := DirSize(filepath.Join(path, entry.Name()), opts.Verbose)
-			display += " (" + format.Size(dirSize) + ")"
+			size, err := dirSizeWithError(filepath.Join(path, entry.Name()), opts.SizeCache)
+			if err != nil {
+				return fmt.Errorf("calculate directory size for %q: %w", entry.Name(), err)
+			}
+			display += " (" + format.Size(size) + ")"
 		}
 
-		if entry.IsDir() {
+		if classified.kind == entryDir {
 			display = col.Blue + display + col.Reset
-		} else if entry.Type()&os.ModeSymlink != 0 {
+		} else if classified.kind == entrySymlink {
 			display = col.Cyan + display + col.Reset
 		} else if IsExecutable(entry.Name()) {
 			display = col.Green + display + col.Reset
 		}
 
-		_, _ = fmt.Fprintln(w, prefix+connector+display)
-
-		isSymlinkDir := false
-		var targetPath string
-		if opts.FollowSymlinks && entry.Type()&os.ModeSymlink != 0 {
-			fullPath := filepath.Join(path, entry.Name())
-			resolved, err := filepath.EvalSymlinks(fullPath)
-			if err == nil {
-				info2, err2 := os.Stat(resolved)
-				if err2 == nil && info2.IsDir() {
-					isSymlinkDir = true
-					targetPath = resolved
-				}
-			}
+		if _, err := fmt.Fprintln(w, prefix+connector+display); err != nil {
+			return fmt.Errorf("write entry %q: %w", entry.Name(), err)
 		}
 
+		isSymlinkDir := classifyErr == nil &&
+			classified.kind == entrySymlink &&
+			opts.FollowSymlinks &&
+			classified.targetInfo != nil &&
+			classified.targetInfo.IsDir()
 		if isSymlinkDir {
 			atomic.AddInt32(&stats.Dirs, 1)
-			Print(w, targetPath, nextPrefix, depth+1, progCount, visited, stats, opts)
-		} else if entry.IsDir() {
+			if err := Print(w, classified.canonicalPath, nextPrefix, depth+1, progCount, visited, stats, opts); err != nil {
+				return err
+			}
+		} else if classifyErr == nil && classified.kind == entryDir {
 			atomic.AddInt32(&stats.Dirs, 1)
-			Print(w, filepath.Join(path, entry.Name()), nextPrefix, depth+1, progCount, visited, stats, opts)
+			if err := Print(w, filepath.Join(path, entry.Name()), nextPrefix, depth+1, progCount, visited, stats, opts); err != nil {
+				return err
+			}
 		} else {
 			atomic.AddInt32(&stats.Files, 1)
 		}
 	}
+	return nil
 }
