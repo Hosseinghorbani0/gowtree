@@ -20,7 +20,7 @@
 </p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Go 1.21+](https://img.shields.io/badge/go-1.21+-blue.svg)](https://go.dev/dl/)
+[![Go 1.25+](https://img.shields.io/badge/go-1.25+-blue.svg)](https://go.dev/dl/)
 [![Windows](https://img.shields.io/badge/platform-Windows-0078D6.svg)](https://github.com/hosseinghorbani0/gowtree/releases)
 [![GitHub Stars](https://img.shields.io/github/stars/hosseinghorbani0/gowtree?style=social)](https://github.com/hosseinghorbani0/gowtree)
 
@@ -148,7 +148,7 @@ gowtree/
 
 ## 🛠️ Build the Windows Installer
 
-Requirements: [Go 1.21+](https://go.dev/dl/) and optionally [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+Requirements: [Go 1.25+](https://go.dev/dl/) and optionally [Inno Setup 6](https://jrsoftware.org/isinfo.php)
 
 ```powershell
 .\scripts\build-installer.ps1
