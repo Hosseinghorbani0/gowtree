@@ -26,6 +26,8 @@ type File struct {
 	Icons       *bool     `yaml:"icons,omitempty"`
 	FollowLinks *bool     `yaml:"follow_symlinks,omitempty"`
 	DU          *bool     `yaml:"du,omitempty"`
+	GitIgnore   *bool     `yaml:"gitignore,omitempty"`
+	NoSummary   *bool     `yaml:"no_summary,omitempty"`
 }
 
 // DefaultPath returns the default config file location.

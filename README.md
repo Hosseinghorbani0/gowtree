@@ -92,6 +92,12 @@ gowtree --html --du --out report.html
 
 # Copy to clipboard
 gowtree --clip
+
+# Hide files matched by the root .gitignore
+gowtree --gitignore -L 3
+
+# Omit the trailing directory/file summary
+gowtree --no-summary
 ```
 
 ---
@@ -118,6 +124,8 @@ gowtree --clip
 | `-p` | Progress bar |
 | `--out <file>` | Write to file |
 | `--clip` | Copy to clipboard |
+| `--gitignore` | Load ignore patterns from `.gitignore` in the root |
+| `--no-summary` | Omit the directory/file summary in text output |
 | `--color` | `auto`, `always`, `never` |
 | `--charset` | `utf8` or `ascii` |
 | `--config` | Path to YAML config |
@@ -166,12 +174,18 @@ color: auto
 icons: true
 sort: name
 max_depth: 3
+gitignore: true
+no_summary: false
 ignore:
   - node_modules
   - .git
 ```
 
 CLI flags always override config values.
+
+`--gitignore` supports positive patterns from the root `.gitignore`; comments,
+blank lines, and leading/trailing slashes are normalized. Git negation patterns
+(`!pattern`) are rejected rather than silently misinterpreted.
 
 ---
 

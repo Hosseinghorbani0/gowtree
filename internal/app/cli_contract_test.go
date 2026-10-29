@@ -138,6 +138,7 @@ func TestRunReportsOutputWriterFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	errRead, errWrite, err := os.Pipe()
 	if err != nil {
 		_ = outRead.Close()
@@ -163,4 +164,35 @@ func TestRunReportsOutputWriterFailure(t *testing.T) {
 	_ = errWrite.Close()
 	_, _ = io.ReadAll(outRead)
 	_, _ = io.ReadAll(errRead)
+}
+
+func TestRunSupportsGitignoreAndNoSummary(t *testing.T) {
+	configPath := writeEmptyConfig(t)
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("ignored.txt\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "ignored.txt"), []byte("ignored"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "kept.txt"), []byte("kept"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	code, stdout, stderr := captureRun(t, "--config", configPath, "--gitignore", "--no-summary", "--no-credit", root)
+	if code != 0 {
+		t.Fatalf("Run() code = %d, want 0; stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	if strings.Contains(stdout, "ignored.txt") {
+		t.Fatalf("stdout contains ignored file: %q", stdout)
+	}
+	if !strings.Contains(stdout, "kept.txt") {
+		t.Fatalf("stdout does not contain kept file: %q", stdout)
+	}
+	if strings.Contains(stdout, "directories,") {
+		t.Fatalf("stdout contains summary despite --no-summary: %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("unexpected stderr: %q", stderr)
+	}
 }

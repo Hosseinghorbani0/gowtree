@@ -151,7 +151,7 @@ func IconFor(name string, isDir bool, isSymlink bool) string {
 	return defaultFileIcon + " "
 }
 
-func DirIcon() string  { return iconMap["dir"] }
+func DirIcon() string { return iconMap["dir"] }
 func FileIcon(ext string) string {
 	if ic, ok := iconMap[strings.ToLower(ext)]; ok {
 		return ic

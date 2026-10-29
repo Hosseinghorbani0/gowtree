@@ -62,6 +62,8 @@ func Run(args []string) int {
 		markdown       bool
 		htmlOut        bool
 		configFile     string
+		gitIgnore      bool
+		noSummary      bool
 	)
 
 	fs.BoolVar(&showAll, "a", false, "Show hidden files and directories")
@@ -93,6 +95,8 @@ func Run(args []string) int {
 	fs.BoolVar(&markdown, "markdown", false, "Output in Markdown format")
 	fs.BoolVar(&htmlOut, "html", false, "Output in HTML format")
 	fs.StringVar(&configFile, "config", "", "Path to config file (default: ~/.gowtree.yaml)")
+	fs.BoolVar(&gitIgnore, "gitignore", false, "Read ignore patterns from .gitignore in the root directory")
+	fs.BoolVar(&noSummary, "no-summary", false, "Do not print the directory/file summary")
 
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "🌳 gowtree %s — A modern tree command for Windows\n", metadata.Version)
@@ -191,6 +195,12 @@ func Run(args []string) int {
 		}
 		if cfg.DU != nil {
 			applyConfig("du", func() { duFlag = *cfg.DU })
+		}
+		if cfg.GitIgnore != nil {
+			applyConfig("gitignore", func() { gitIgnore = *cfg.GitIgnore })
+		}
+		if cfg.NoSummary != nil {
+			applyConfig("no-summary", func() { noSummary = *cfg.NoSummary })
 		}
 	}
 
@@ -319,6 +329,15 @@ func Run(args []string) int {
 		return 0
 	}
 
+	if gitIgnore {
+		patterns, err := loadGitignore(root)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error loading .gitignore:", err)
+			return 1
+		}
+		opts.Ignore = append(opts.Ignore, patterns...)
+	}
+
 	absRoot, _ := filepath.Abs(root)
 
 	if jsonOut {
@@ -408,9 +427,11 @@ func Run(args []string) int {
 		return 1
 	}
 
-	if _, err := fmt.Fprintf(outWriter, "\n%d directories, %d files\n", stats.Dirs, stats.Files); err != nil {
-		fmt.Fprintln(os.Stderr, "Error writing statistics:", err)
-		return 1
+	if !noSummary {
+		if _, err := fmt.Fprintf(outWriter, "\n%d directories, %d files\n", stats.Dirs, stats.Files); err != nil {
+			fmt.Fprintln(os.Stderr, "Error writing statistics:", err)
+			return 1
+		}
 	}
 	if progress && style.IsTerminal(os.Stderr.Fd()) {
 		fmt.Fprint(os.Stderr, "\r"+strings.Repeat(" ", 80)+"\r")
