@@ -65,4 +65,4 @@ jobs:
         run: go build -trimpath -o build\gowtree.exe ./cmd/gowtree
 
       - name: Analyze
-        uses: github/codeql-action/analyze@5c8ea125689a2c5ae2672d1d914ac4bcd95d1b4b # v3
+        uses: github/codeql-action/analyze@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3
