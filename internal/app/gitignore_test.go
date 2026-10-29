@@ -10,7 +10,7 @@ import (
 func TestLoadGitignore(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, ".gitignore")
-	if err := os.WriteFile(path, []byte("# generated\n\n/bin/\n*.tmp\n"), 0600); err != nil {
+	if err := os.WriteFile(path, []byte("# generated\n\nbuild/cache\n**/*.tmp\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -18,7 +18,7 @@ func TestLoadGitignore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"bin", "*.tmp"}
+	want := []string{"build/cache", "**/*.tmp"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("patterns = %#v, want %#v", got, want)
 	}

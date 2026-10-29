@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -25,6 +26,7 @@ type Options struct {
 	FilesOnly      bool
 	ShowSize       bool
 	Ignore         []string
+	IgnoreRoot     string
 	SortBy         string
 	SortRev        bool
 	TimeMode       string
@@ -67,11 +69,42 @@ func shouldInclude(name, fullPath string, opts Options) bool {
 		return false
 	}
 	for _, pat := range opts.Ignore {
-		if m, _ := filepath.Match(pat, name); m {
+		if matchesIgnorePattern(pat, name, fullPath, opts.IgnoreRoot) {
 			return false
 		}
 	}
 	return true
+}
+
+func matchesIgnorePattern(pattern, name, fullPath, root string) bool {
+	pattern = filepath.ToSlash(strings.TrimSpace(pattern))
+	if pattern == "" {
+		return false
+	}
+	if matched, _ := path.Match(pattern, name); matched {
+		return true
+	}
+	if root == "" {
+		return false
+	}
+	relative, err := filepath.Rel(root, fullPath)
+	if err != nil {
+		return false
+	}
+	relative = filepath.ToSlash(relative)
+	if matched, _ := path.Match(pattern, relative); matched {
+		return true
+	}
+	if strings.HasPrefix(pattern, "**/") {
+		suffix := strings.TrimPrefix(pattern, "**/")
+		parts := strings.Split(relative, "/")
+		for i := range parts {
+			if matched, _ := path.Match(suffix, strings.Join(parts[i:], "/")); matched {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 type sortableEntry struct {

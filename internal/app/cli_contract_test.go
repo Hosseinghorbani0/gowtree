@@ -196,3 +196,29 @@ func TestRunSupportsGitignoreAndNoSummary(t *testing.T) {
 		t.Fatalf("unexpected stderr: %q", stderr)
 	}
 }
+
+func TestRunSupportsCustomIgnoreFile(t *testing.T) {
+	configPath := writeEmptyConfig(t)
+	root := t.TempDir()
+	ignorePath := filepath.Join(t.TempDir(), "ignore.txt")
+	if err := os.WriteFile(ignorePath, []byte("secret.txt\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "secret.txt"), []byte("secret"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "public.txt"), []byte("public"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	code, stdout, stderr := captureRun(t, "--config", configPath, "--ignore-file", ignorePath, "--no-summary", "--no-credit", root)
+	if code != 0 {
+		t.Fatalf("Run() code = %d, want 0; stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	if strings.Contains(stdout, "secret.txt") || !strings.Contains(stdout, "public.txt") {
+		t.Fatalf("custom ignore output mismatch: %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("unexpected stderr: %q", stderr)
+	}
+}

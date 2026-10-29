@@ -64,6 +64,7 @@ func Run(args []string) int {
 		configFile     string
 		gitIgnore      bool
 		noSummary      bool
+		ignoreFile     string
 	)
 
 	fs.BoolVar(&showAll, "a", false, "Show hidden files and directories")
@@ -97,6 +98,7 @@ func Run(args []string) int {
 	fs.StringVar(&configFile, "config", "", "Path to config file (default: ~/.gowtree.yaml)")
 	fs.BoolVar(&gitIgnore, "gitignore", false, "Read ignore patterns from .gitignore in the root directory")
 	fs.BoolVar(&noSummary, "no-summary", false, "Do not print the directory/file summary")
+	fs.StringVar(&ignoreFile, "ignore-file", "", "Read additional ignore patterns from a file")
 
 	fs.Usage = func() {
 		fmt.Fprintf(fs.Output(), "🌳 gowtree %s — A modern tree command for Windows\n", metadata.Version)
@@ -201,6 +203,9 @@ func Run(args []string) int {
 		}
 		if cfg.NoSummary != nil {
 			applyConfig("no-summary", func() { noSummary = *cfg.NoSummary })
+		}
+		if cfg.IgnoreFile != nil {
+			applyConfig("ignore-file", func() { ignoreFile = *cfg.IgnoreFile })
 		}
 	}
 
@@ -337,6 +342,15 @@ func Run(args []string) int {
 		}
 		opts.Ignore = append(opts.Ignore, patterns...)
 	}
+	if ignoreFile != "" {
+		patterns, err := loadIgnoreFile(ignoreFile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error loading ignore file:", err)
+			return 1
+		}
+		opts.Ignore = append(opts.Ignore, patterns...)
+	}
+	opts.IgnoreRoot = root
 
 	absRoot, _ := filepath.Abs(root)
 

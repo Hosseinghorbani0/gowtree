@@ -9,7 +9,11 @@ import (
 )
 
 func loadGitignore(root string) ([]string, error) {
-	file, err := os.Open(filepath.Join(root, ".gitignore"))
+	return loadIgnoreFile(filepath.Join(root, ".gitignore"))
+}
+
+func loadIgnoreFile(path string) ([]string, error) {
+	file, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -28,8 +32,6 @@ func loadGitignore(root string) ([]string, error) {
 		if strings.HasPrefix(line, "!") {
 			return nil, fmt.Errorf("negated patterns are not supported: %q", line)
 		}
-		line = strings.TrimPrefix(line, "/")
-		line = strings.TrimSuffix(line, "/")
 		if line != "" {
 			patterns = append(patterns, line)
 		}

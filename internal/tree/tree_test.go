@@ -89,6 +89,23 @@ func TestIgnorePattern(t *testing.T) {
 	}
 }
 
+func TestIgnorePatternMatchesRelativePathsAndGlobstar(t *testing.T) {
+	root := t.TempDir()
+	opts := defaultOpts()
+	opts.IgnoreRoot = root
+	opts.Ignore = []string{"build/cache", "**/*.tmp"}
+
+	if shouldInclude("cache", filepath.Join(root, "build", "cache"), opts) {
+		t.Fatal("path-specific ignore pattern did not exclude build/cache")
+	}
+	if shouldInclude("result.tmp", filepath.Join(root, "nested", "result.tmp"), opts) {
+		t.Fatal("globstar ignore pattern did not exclude nested tmp file")
+	}
+	if !shouldInclude("keep.go", filepath.Join(root, "nested", "keep.go"), opts) {
+		t.Fatal("unrelated path was incorrectly excluded")
+	}
+}
+
 func TestRegexFilter(t *testing.T) {
 	re := regexp.MustCompile(`\.go$`)
 	opts := defaultOpts()

@@ -28,6 +28,7 @@ type File struct {
 	DU          *bool     `yaml:"du,omitempty"`
 	GitIgnore   *bool     `yaml:"gitignore,omitempty"`
 	NoSummary   *bool     `yaml:"no_summary,omitempty"`
+	IgnoreFile  *string   `yaml:"ignore_file,omitempty"`
 }
 
 // DefaultPath returns the default config file location.
