@@ -1,49 +1,105 @@
-name: CI/CD
+name: Release
 
 on:
   push:
-    branches: [main]
-    tags: ['v*']
-  pull_request:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.25.x"
 
 jobs:
-  test:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-      - name: Cache Go modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~\AppData\Local\go-build
-            ~\go\pkg\mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-      - name: Run tests
-        run: go test ./...
-
   release:
-    needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
+    name: Build and publish release
     runs-on: windows-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          go-version: '1.21'
-      - name: Install Inno Setup
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Resolve release version
+        id: version
+        shell: pwsh
         run: |
-          $url = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
-          Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\innosetup.exe"
-          Start-Process -FilePath "$env:TEMP\innosetup.exe" -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/DIR=C:\InnoSetup6" -Wait
+          $version = "${env:GITHUB_REF_NAME}".TrimStart("v")
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Release tag must have the form vMAJOR.MINOR.PATCH"
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = "6.7.3"
+          $url = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-$version.exe"
+          # SHA-256 from the official jrsoftware/issrc release asset metadata.
+          $expectedHash = "9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732"
+          if ($expectedHash -notmatch '^[0-9a-fA-F]{64}$') {
+            throw "Configured Inno Setup SHA-256 digest is malformed"
+          }
+          $installer = Join-Path $env:RUNNER_TEMP "innosetup.exe"
+          Invoke-WebRequest -Uri $url -OutFile $installer
+          if (-not (Test-Path -LiteralPath $installer -PathType Leaf)) {
+            throw "Inno Setup download did not produce a file"
+          }
+          $actualHash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $expectedHash) {
+            throw "Inno Setup checksum mismatch. Expected $expectedHash, got $actualHash"
+          }
+          Start-Process -FilePath $installer `
+            -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/DIR=C:\InnoSetup6" `
+            -Wait -NoNewWindow
+
       - name: Build installer
         shell: pwsh
-        run: ./scripts/build-installer.ps1
-      - name: Create release
-        uses: softprops/action-gh-release@v2
+        run: ./scripts/build-installer.ps1 -Version "${{ steps.version.outputs.version }}"
+
+      - name: Prepare release artifacts
+        id: artifacts
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $source = Get-ChildItem "installer\output\gowtree-setup-*.exe" |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          if (-not $source) {
+            throw "Installer artifact was not produced"
+          }
+
+          $destination = "release\gowtree-setup-$env:VERSION.exe"
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Copy-Item $source.FullName $destination -Force
+          $hash = (Get-FileHash $destination -Algorithm SHA256).Hash
+          "$hash  $(Split-Path $destination -Leaf)" |
+            Out-File "$destination.sha256" -Encoding ascii
+          "path=$destination" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          files: release/gowtree-setup-1.4.0.exe
+          generate_release_notes: true
+          files: |
+            ${{ steps.artifacts.outputs.path }}
+            ${{ steps.artifacts.outputs.path }}.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
