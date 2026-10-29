@@ -35,10 +35,10 @@ jobs:
       - name: Check formatting
         shell: pwsh
         run: |
-          $files = gofmt -l .
+          $files = @(gofmt -l .) | Where-Object { $_.Trim() -ne "" }
           if ($files) {
             Write-Error "The following files are not gofmt-formatted:"
-            $files
+            $files | ForEach-Object { Write-Error $_ }
             exit 1
           }
 
